@@ -36,23 +36,21 @@ public class TaskServiceImpl implements TaskService {
     }
     RecurrencePattern recurrencePattern = null;
     if (dto.getRecurrencePattern() != null) {
-      if (dto.getRecurrencePattern().getId() != null) {
-        // Try to find existing pattern
-        Optional<RecurrencePattern> existingPattern = recurrencePatternRepository.findById(
-            dto.getRecurrencePattern().getId());
-        if (existingPattern.isPresent()) {
-          log.info("Pattern found for ID: {}", dto.getRecurrencePattern().getId());
-        } else {
-          log.warn("Pattern not found for ID: {}, creating new one",
-              dto.getRecurrencePattern().getId());
-          // Create new RecurrencePattern from DTO
-          recurrencePattern = TaskEventMapper.toRecurrencePatternEntity(dto.getRecurrencePattern());
-          recurrencePattern = recurrencePatternRepository.saveAndFlush(recurrencePattern);
-        }
+      var recurrencePatternDto = dto.getRecurrencePattern();
+      // Try to find existing pattern if ID is provided
+      if (recurrencePatternDto.getId() != null) {
+        recurrencePattern = recurrencePatternRepository.findById(recurrencePatternDto.getId())
+            .map(existingPattern -> {
+              log.info("Pattern found for ID: {}", recurrencePatternDto.getId());
+              return existingPattern;
+            })
+            .orElseGet(() -> {
+              log.warn("Pattern not found for ID: {}, creating new one", recurrencePatternDto.getId());
+              return createAndSaveRecurrencePattern(recurrencePatternDto);
+            });
       } else {
         // Create new RecurrencePattern without ID (let it be generated)
-        recurrencePattern = TaskEventMapper.toRecurrencePatternEntity(dto.getRecurrencePattern());
-        recurrencePattern = recurrencePatternRepository.saveAndFlush(recurrencePattern);
+        recurrencePattern = createAndSaveRecurrencePattern(recurrencePatternDto);
       }
     }
 
@@ -98,5 +96,10 @@ public class TaskServiceImpl implements TaskService {
     log.debug("saving task: {}", task);
     taskRepository.save(task);
     log.info("Task event processed successfully: {}", dto);
+  }
+
+  private RecurrencePattern createAndSaveRecurrencePattern(com.checkproof.explore.ai_tool_java_copilot.dto.RecurrencePatternDto recurrencePatternDto) {
+    RecurrencePattern recurrencePattern = TaskEventMapper.toRecurrencePatternEntity(recurrencePatternDto);
+    return recurrencePatternRepository.saveAndFlush(recurrencePattern);
   }
 }

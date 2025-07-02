@@ -6,6 +6,7 @@ import com.checkproof.explore.ai_tool_java_copilot.domain.Task;
 import com.checkproof.explore.ai_tool_java_copilot.dto.ParticipantDto;
 import com.checkproof.explore.ai_tool_java_copilot.dto.RecurrencePatternDto;
 import com.checkproof.explore.ai_tool_java_copilot.dto.TaskEventMessageDto;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import lombok.NoArgsConstructor;
@@ -79,7 +80,7 @@ public class TaskEventMapper {
     private static void updateParticipants(Task task, List<ParticipantDto> participantDtos) {
         if (participantDtos != null) {
             if (task.getParticipants() == null) {
-                task.setParticipants(new java.util.ArrayList<>());
+                task.setParticipants(new ArrayList<>());
             }
             task.getParticipants().clear();
             participantDtos.forEach(participantDto -> task.getParticipants().add(toParticipantEntity(participantDto)));

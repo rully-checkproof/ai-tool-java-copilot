@@ -1,7 +1,4 @@
 package com.checkproof.explore.ai_tool_java_copilot.dto;
-
-import com.checkproof.explore.ai_tool_java_copilot.domain.Participant;
-import com.checkproof.explore.ai_tool_java_copilot.domain.RecurrencePattern;
 import com.checkproof.explore.ai_tool_java_copilot.enumeration.RecurrenceType;
 import com.checkproof.explore.ai_tool_java_copilot.enumeration.TaskPriority;
 import com.checkproof.explore.ai_tool_java_copilot.enumeration.TaskStatus;
@@ -29,6 +26,6 @@ public class TaskEventMessageDto {
   private TaskPriority priority;
   private TaskStatus status;
   private RecurrenceType recurrenceType;
-  private RecurrencePattern recurrencePattern;
-  private List<Participant> participants;
+  private RecurrencePatternDto recurrencePattern;
+  private List<ParticipantDto> participants;
 }

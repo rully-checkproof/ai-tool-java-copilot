@@ -28,11 +28,21 @@ public class TaskEventMapper {
 
     public static RecurrencePattern toRecurrencePatternEntity(RecurrencePatternDto dto) {
         RecurrencePattern rp = new RecurrencePattern();
-        rp.setId(dto.getId());
+        // Don't set ID for new entities - let @GeneratedValue handle it
+        // Only set ID if it's an existing entity being updated
+        if (dto.getId() != null) {
+            rp.setId(dto.getId());
+        }
         rp.setType(dto.getType());
         rp.setRecurrenceInterval(dto.getInterval());
-        rp.setDaysOfWeek(dto.getDaysOfWeek());
+        // Add null check before calling isEmpty()
+        if (dto.getDaysOfWeek() != null && !dto.getDaysOfWeek().isEmpty()) {
+            rp.setDaysOfWeek(dto.getDaysOfWeek());
+        } else {
+            rp.setDaysOfWeek(List.of()); // Use List.of() instead of Collections.emptyList()
+        }
         rp.setDayOfMonth(dto.getDayOfMonth());
+        rp.setEndDate(dto.getEndDate());
         return rp;
     }
 
@@ -69,7 +79,9 @@ public class TaskEventMapper {
                 RecurrencePattern rp = task.getRecurrencePattern();
                 rp.setType(dto.getType());
                 rp.setRecurrenceInterval(dto.getInterval());
-                rp.setDaysOfWeek(dto.getDaysOfWeek());
+                if (dto.getDaysOfWeek()!= null){
+                    rp.setDaysOfWeek(dto.getDaysOfWeek());
+                }
                 rp.setDayOfMonth(dto.getDayOfMonth());
             }
         } else {

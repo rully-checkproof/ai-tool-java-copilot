@@ -34,30 +34,28 @@ This project is a Spring Boot application for managing scheduled tasks, integrat
 ## Sample Task Event JSON
 ```
 {
-  "id": "123e4567-e89b-12d3-a456-426614174000",
-  "title": "Inspect Safety Equipment",
-  "description": "Monthly inspection of all safety equipment in the facility.",
-  "startDate": "2025-07-01T09:00:00",
-  "endDate": "2025-07-01T11:00:00",
-  "priority": "HIGH",
-  "status": "IN_PROGRESS",
-  "recurrenceType": "MONTHLY",
-  "recurrencePattern": {
-    "id" : "e3131f0c-59d6-4289-963a-da23c0bd630b",
-    "interval": 1,
-    "daysOfWeek": [
-      "MONDAY"
-    ],
-    "endDate": "2025-12-31T00:00:00"
-  },
-  "participants": [
-    {
-      "id": "987e6543-e21b-12d3-a456-426614174999",
-      "name": "John Doe",
-      "role": "INSPECTOR"
-    }
-  ]
-}
+    "id": "a7b2c5d8-4e9f-41a2-b3c6-7d8e9f0a1b2c",
+    "title": "Clean Chemical Storage Area",
+    "description": "Deep cleaning and organization of chemical storage room with proper labeling verification.",
+    "startDate": "2025-07-03T14:30:00",
+    "endDate": "2025-07-03T17:00:00",
+    "priority": "HIGH",
+    "status": "PENDING",
+    "recurrenceType": "MONTHLY",
+    "recurrencePattern": {
+      "interval": 1,
+      "type": "MONTHLY",
+      "dayOfMonth": 3,
+      "endDate": "2025-12-31T00:00:00"
+    },
+    "participants": [
+      {
+        "id": "3f8a9b2c-5d6e-47f8-a9b0-c1d2e3f4a5b6",
+        "name": "Sarah Martinez",
+        "role": "INSPECTOR"
+      }
+    ]
+  }
 ```
 
 ## Getting Started

@@ -35,13 +35,25 @@ public class TaskServiceImpl implements TaskService {
       return;
     }
     RecurrencePattern recurrencePattern = null;
-    Optional<RecurrencePattern> existingPattern = recurrencePatternRepository.findById(dto.getRecurrencePattern().getId());
-    if (existingPattern.isPresent()){
-      log.warn("Pattern found for ID: {}", dto.getRecurrencePattern().getId());
-    } else {
-      // Create new RecurrencePattern from DTO
-      recurrencePattern = TaskEventMapper.toRecurrencePatternEntity(dto.getRecurrencePattern());
-      recurrencePatternRepository.saveAndFlush(recurrencePattern);
+    if (dto.getRecurrencePattern() != null) {
+      if (dto.getRecurrencePattern().getId() != null) {
+        // Try to find existing pattern
+        Optional<RecurrencePattern> existingPattern = recurrencePatternRepository.findById(
+            dto.getRecurrencePattern().getId());
+        if (existingPattern.isPresent()) {
+          log.info("Pattern found for ID: {}", dto.getRecurrencePattern().getId());
+        } else {
+          log.warn("Pattern not found for ID: {}, creating new one",
+              dto.getRecurrencePattern().getId());
+          // Create new RecurrencePattern from DTO
+          recurrencePattern = TaskEventMapper.toRecurrencePatternEntity(dto.getRecurrencePattern());
+          recurrencePattern = recurrencePatternRepository.saveAndFlush(recurrencePattern);
+        }
+      } else {
+        // Create new RecurrencePattern without ID (let it be generated)
+        recurrencePattern = TaskEventMapper.toRecurrencePatternEntity(dto.getRecurrencePattern());
+        recurrencePattern = recurrencePatternRepository.saveAndFlush(recurrencePattern);
+      }
     }
 
     // Handle participants
@@ -50,20 +62,21 @@ public class TaskServiceImpl implements TaskService {
       for (var participantDto : dto.getParticipants()) {
         if (participantDto.getId() != null) {
           // Check if participant already exists
-          Optional<Participant> existingParticipant = participantRepository.findById(participantDto.getId());
+          Optional<Participant> existingParticipant = participantRepository.findById(
+              participantDto.getId());
           if (existingParticipant.isPresent()) {
             log.info("Participant found for ID: {}", participantDto.getId());
             participants.add(existingParticipant.get());
           } else {
-            log.warn("Participant not found for ID: {}", participantDto.getId());
-            // If not found, create a new participant
+            log.warn("Participant not found for ID: {}, creating new one", participantDto.getId());
+            // If not found, create a new participant but don't save it manually
+            // Let cascade handle the saving
             Participant participant = TaskEventMapper.toParticipantEntity(participantDto);
-            participantRepository.saveAndFlush(participant);
             participants.add(participant);
           }
+        }
       }
     }
-
 
     Task task = taskRepository.findById(dto.getId()).orElse(null);
     if (task == null) {
@@ -79,15 +92,11 @@ public class TaskServiceImpl implements TaskService {
       task.setRecurrencePattern(recurrencePattern);
     }
     // Set participants for the task
-    if (!participants.isEmpty()){
+    if (!participants.isEmpty()) {
       task.setParticipants(participants);
     }
     log.debug("saving task: {}", task);
     taskRepository.save(task);
-  }
     log.info("Task event processed successfully: {}", dto);
   }
-
-
 }
-

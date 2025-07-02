@@ -15,6 +15,7 @@ public class ParticipantDto {
     private UUID id;
     private String name;
     private String title;
+    private String department;
     private Role role;
 }
 

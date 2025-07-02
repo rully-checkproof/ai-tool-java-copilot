@@ -3,19 +3,27 @@ package com.checkproof.explore.ai_tool_java_copilot.service.impl;
 import com.checkproof.explore.ai_tool_java_copilot.domain.Participant;
 import com.checkproof.explore.ai_tool_java_copilot.domain.RecurrencePattern;
 import com.checkproof.explore.ai_tool_java_copilot.domain.Task;
+import com.checkproof.explore.ai_tool_java_copilot.dto.ParticipantDto;
+import com.checkproof.explore.ai_tool_java_copilot.dto.RecurrencePatternDto;
+import com.checkproof.explore.ai_tool_java_copilot.dto.TaskDto;
 import com.checkproof.explore.ai_tool_java_copilot.dto.TaskEventMessageDto;
+import com.checkproof.explore.ai_tool_java_copilot.enumeration.TaskStatus;
 import com.checkproof.explore.ai_tool_java_copilot.repository.ParticipantRepository;
 import com.checkproof.explore.ai_tool_java_copilot.repository.RecurrencePatternRepository;
 import com.checkproof.explore.ai_tool_java_copilot.repository.TaskRepository;
 import com.checkproof.explore.ai_tool_java_copilot.service.TaskService;
 import com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper;
-import jakarta.transaction.Transactional;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -98,8 +106,70 @@ public class TaskServiceImpl implements TaskService {
     log.info("Task event processed successfully: {}", dto);
   }
 
-  private RecurrencePattern createAndSaveRecurrencePattern(com.checkproof.explore.ai_tool_java_copilot.dto.RecurrencePatternDto recurrencePatternDto) {
+  private RecurrencePattern createAndSaveRecurrencePattern(RecurrencePatternDto recurrencePatternDto) {
     RecurrencePattern recurrencePattern = TaskEventMapper.toRecurrencePatternEntity(recurrencePatternDto);
     return recurrencePatternRepository.saveAndFlush(recurrencePattern);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<TaskDto> getAllTasks(Pageable pageable, TaskStatus status, LocalDateTime startDate, LocalDateTime endDate) {
+    log.info("Fetching tasks with filters - status: {}, startDate: {}, endDate: {}, taskId: {}",
+             status, startDate, endDate);
+
+    Page<Task> taskPage = taskRepository.findTasksWithFilters(pageable, status, startDate, endDate);
+
+    return taskPage.map(this::convertToTaskDto);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public TaskDto getTaskById(UUID id) {
+    log.info("Fetching task by ID: {}", id);
+
+    Task task = taskRepository.findById(id)
+        .orElseThrow(() -> new RuntimeException("Task not found with id: " + id));
+
+    return convertToTaskDto(task);
+  }
+
+  private TaskDto convertToTaskDto(Task task) {
+    return TaskDto.builder()
+        .id(task.getId())
+        .title(task.getTitle())
+        .description(task.getDescription())
+        .startDate(task.getStartDate())
+        .endDate(task.getEndDate())
+        .priority(task.getPriority())
+        .status(task.getStatus())
+        .recurrenceType(task.getRecurrenceType())
+        .recurrencePattern(task.getRecurrencePattern() != null ?
+            convertToRecurrencePatternDto(task.getRecurrencePattern()) : null)
+        .participants(task.getParticipants() != null ?
+            task.getParticipants().stream()
+                .map(this::convertToParticipantDto)
+                .toList() : List.of())
+        .build();
+  }
+
+  private RecurrencePatternDto convertToRecurrencePatternDto(RecurrencePattern pattern) {
+    return RecurrencePatternDto.builder()
+        .id(pattern.getId())
+        .type(pattern.getType())
+        .interval(pattern.getRecurrenceInterval())
+        .daysOfWeek(pattern.getDaysOfWeek())
+        .dayOfMonth(pattern.getDayOfMonth())
+        .endDate(pattern.getEndDate())
+        .build();
+  }
+
+  private ParticipantDto convertToParticipantDto(Participant participant) {
+    return ParticipantDto.builder()
+        .id(participant.getId())
+        .name(participant.getName())
+        .title(participant.getTitle())
+        .department(participant.getDepartment())
+        .role(participant.getRole())
+        .build();
   }
 }

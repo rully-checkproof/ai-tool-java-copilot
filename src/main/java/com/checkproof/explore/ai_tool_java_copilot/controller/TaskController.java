@@ -37,7 +37,7 @@ public class TaskController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime startDate,
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime endDate) {
 
-        log.info("Getting tasks with filters - status: {}, startDate: {}, endDate: {}, taskId: {}, page: {}",
+        log.info("Getting tasks with filters - status: {}, startDate: {}, endDate: {}, page: {}",
                 status, startDate, endDate, pageable);
 
         Page<TaskDto> tasks = taskService.getAllTasks(pageable, status, startDate, endDate);

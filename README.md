@@ -43,8 +43,11 @@ This project is a Spring Boot application for managing scheduled tasks, integrat
   "status": "IN_PROGRESS",
   "recurrenceType": "MONTHLY",
   "recurrencePattern": {
+    "id" : "e3131f0c-59d6-4289-963a-da23c0bd630b",
     "interval": 1,
-    "daysOfWeek": ["MONDAY"],
+    "daysOfWeek": [
+      "MONDAY"
+    ],
     "endDate": "2025-12-31T00:00:00"
   },
   "participants": [

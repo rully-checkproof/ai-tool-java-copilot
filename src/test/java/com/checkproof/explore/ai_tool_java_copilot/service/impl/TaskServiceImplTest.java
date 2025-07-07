@@ -14,6 +14,9 @@ import com.checkproof.explore.ai_tool_java_copilot.enumeration.TaskStatus;
 import com.checkproof.explore.ai_tool_java_copilot.repository.ParticipantRepository;
 import com.checkproof.explore.ai_tool_java_copilot.repository.RecurrencePatternRepository;
 import com.checkproof.explore.ai_tool_java_copilot.repository.TaskRepository;
+import com.checkproof.explore.ai_tool_java_copilot.util.TaskDtoMapper;
+import com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper;
+import com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -39,6 +42,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -77,58 +81,58 @@ class TaskServiceImplTest {
 
         // Setup test data
         recurrencePattern = RecurrencePattern.builder()
-                .id(recurrencePatternId)
-                .type(RecurrenceType.WEEKLY)
-                .recurrenceInterval(1)
-                .daysOfWeek(Arrays.asList("MONDAY", "WEDNESDAY"))
-                .endDate(LocalDate.now().plusMonths(6))
-                .build();
+            .id(recurrencePatternId)
+            .type(RecurrenceType.WEEKLY)
+            .recurrenceInterval(1)
+            .daysOfWeek(Arrays.asList("MONDAY", "WEDNESDAY"))
+            .endDate(LocalDate.now().plusMonths(6))
+            .build();
 
         participant = Participant.builder()
+            .id(participantId)
+            .name("John Doe")
+            .title("Developer")
+            .department("Engineering")
+            .role(Role.USER)
+            .build();
+
+        task = Task.builder()
+            .id(taskId)
+            .title("Test Task")
+            .description("Test Description")
+            .startDate(LocalDateTime.now())
+            .endDate(LocalDateTime.now().plusHours(2))
+            .priority(TaskPriority.HIGH)
+            .status(TaskStatus.PENDING)
+            .recurrenceType(RecurrenceType.WEEKLY)
+            .recurrencePattern(recurrencePattern)
+            .participants(List.of(participant))
+            .build();
+
+        taskEventDto = TaskEventMessageDto.builder()
+            .id(taskId)
+            .title("Test Task")
+            .description("Test Description")
+            .startDate(LocalDateTime.now())
+            .endDate(LocalDateTime.now().plusHours(2))
+            .priority(TaskPriority.HIGH)
+            .status(TaskStatus.PENDING)
+            .recurrenceType(RecurrenceType.WEEKLY)
+            .recurrencePattern(RecurrencePatternDto.builder()
+                .id(recurrencePatternId)
+                .type(RecurrenceType.WEEKLY)
+                .interval(1)
+                .daysOfWeek(Arrays.asList("MONDAY", "WEDNESDAY"))
+                .endDate(LocalDate.now().plusMonths(6))
+                .build())
+            .participants(List.of(ParticipantDto.builder()
                 .id(participantId)
                 .name("John Doe")
                 .title("Developer")
                 .department("Engineering")
                 .role(Role.USER)
-                .build();
-
-        task = Task.builder()
-                .id(taskId)
-                .title("Test Task")
-                .description("Test Description")
-                .startDate(LocalDateTime.now())
-                .endDate(LocalDateTime.now().plusHours(2))
-                .priority(TaskPriority.HIGH)
-                .status(TaskStatus.PENDING)
-                .recurrenceType(RecurrenceType.WEEKLY)
-                .recurrencePattern(recurrencePattern)
-                .participants(List.of(participant))
-                .build();
-
-        taskEventDto = TaskEventMessageDto.builder()
-                .id(taskId)
-                .title("Test Task")
-                .description("Test Description")
-                .startDate(LocalDateTime.now())
-                .endDate(LocalDateTime.now().plusHours(2))
-                .priority(TaskPriority.HIGH)
-                .status(TaskStatus.PENDING)
-                .recurrenceType(RecurrenceType.WEEKLY)
-                .recurrencePattern(RecurrencePatternDto.builder()
-                        .id(recurrencePatternId)
-                        .type(RecurrenceType.WEEKLY)
-                        .interval(1)
-                        .daysOfWeek(Arrays.asList("MONDAY", "WEDNESDAY"))
-                        .endDate(LocalDate.now().plusMonths(6))
-                        .build())
-                .participants(List.of(ParticipantDto.builder()
-                        .id(participantId)
-                        .name("John Doe")
-                        .title("Developer")
-                        .department("Engineering")
-                        .role(Role.USER)
-                        .build()))
-                .build();
+                .build()))
+            .build();
     }
 
     @Nested
@@ -139,25 +143,25 @@ class TaskServiceImplTest {
         @DisplayName("Should handle valid task event for new task successfully")
         void shouldHandleValidTaskEventForNewTask() {
             // Given
-            try (MockedStatic<com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator> validator =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.class);
-                 MockedStatic<com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper> mapper =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.class)) {
+            try (MockedStatic<TaskEventValidator> validator =
+                mockStatic(TaskEventValidator.class);
+                MockedStatic<TaskEventMapper> mapper =
+                    mockStatic(TaskEventMapper.class)) {
 
-                validator.when(() -> com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.isValidTaskEvent(taskEventDto))
-                        .thenReturn(true);
+                validator.when(() -> TaskEventValidator.isValidTaskEvent(taskEventDto))
+                    .thenReturn(true);
 
                 when(recurrencePatternRepository.findById(recurrencePatternId))
-                        .thenReturn(Optional.of(recurrencePattern));
+                    .thenReturn(Optional.of(recurrencePattern));
                 when(participantRepository.findById(participantId))
-                        .thenReturn(Optional.of(participant));
+                    .thenReturn(Optional.of(participant));
                 when(taskRepository.findById(taskId))
-                        .thenReturn(Optional.empty());
+                    .thenReturn(Optional.empty());
 
-                mapper.when(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.toTaskEntity(taskEventDto))
-                        .thenReturn(task);
+                mapper.when(() -> TaskEventMapper.toTaskEntity(taskEventDto))
+                    .thenReturn(task);
                 when(taskRepository.save(any(Task.class)))
-                        .thenReturn(task);
+                    .thenReturn(task);
 
                 // When
                 taskService.handleTaskEvent(taskEventDto);
@@ -174,25 +178,25 @@ class TaskServiceImplTest {
         @DisplayName("Should handle valid task event for existing task successfully")
         void shouldHandleValidTaskEventForExistingTask() {
             // Given
-            try (MockedStatic<com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator> validator =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.class);
-                 MockedStatic<com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper> mapper =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.class)) {
+            try (MockedStatic<TaskEventValidator> validator =
+                mockStatic(TaskEventValidator.class);
+                MockedStatic<TaskEventMapper> mapper =
+                    mockStatic(TaskEventMapper.class)) {
 
-                validator.when(() -> com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.isValidTaskEvent(taskEventDto))
-                        .thenReturn(true);
+                validator.when(() -> TaskEventValidator.isValidTaskEvent(taskEventDto))
+                    .thenReturn(true);
 
                 when(recurrencePatternRepository.findById(recurrencePatternId))
-                        .thenReturn(Optional.of(recurrencePattern));
+                    .thenReturn(Optional.of(recurrencePattern));
                 when(participantRepository.findById(participantId))
-                        .thenReturn(Optional.of(participant));
+                    .thenReturn(Optional.of(participant));
                 when(taskRepository.findById(taskId))
-                        .thenReturn(Optional.of(task));
+                    .thenReturn(Optional.of(task));
 
-                mapper.when(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.updateTaskEntity(task, taskEventDto))
-                        .thenAnswer(invocation -> null); // void method
+                mapper.when(() -> TaskEventMapper.updateTaskEntity(task, taskEventDto))
+                    .thenAnswer(invocation -> null); // void method
                 when(taskRepository.save(task))
-                        .thenReturn(task);
+                    .thenReturn(task);
 
                 // When
                 taskService.handleTaskEvent(taskEventDto);
@@ -202,7 +206,7 @@ class TaskServiceImplTest {
                 verify(participantRepository).findById(participantId);
                 verify(taskRepository).findById(taskId);
                 verify(taskRepository).save(task);
-                mapper.verify(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.updateTaskEntity(task, taskEventDto));
+                mapper.verify(() -> TaskEventMapper.updateTaskEntity(task, taskEventDto));
             }
         }
 
@@ -210,19 +214,19 @@ class TaskServiceImplTest {
         @DisplayName("Should handle invalid task event and return early")
         void shouldHandleInvalidTaskEventAndReturnEarly() {
             // Given
-            try (MockedStatic<com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator> validator =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.class)) {
+            try (MockedStatic<TaskEventValidator> validator =
+                mockStatic(TaskEventValidator.class)) {
 
-                validator.when(() -> com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.isValidTaskEvent(taskEventDto))
-                        .thenReturn(false);
-                validator.when(() -> com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.logValidationWarning(taskEventDto))
-                        .thenAnswer(invocation -> null); // void method
+                validator.when(() -> TaskEventValidator.isValidTaskEvent(taskEventDto))
+                    .thenReturn(false);
+                validator.when(() -> TaskEventValidator.logValidationWarning(taskEventDto))
+                    .thenAnswer(invocation -> null); // void method
 
                 // When
                 taskService.handleTaskEvent(taskEventDto);
 
                 // Then
-                validator.verify(() -> com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.logValidationWarning(taskEventDto));
+                validator.verify(() -> TaskEventValidator.logValidationWarning(taskEventDto));
                 verifyNoInteractions(taskRepository);
                 verifyNoInteractions(recurrencePatternRepository);
                 verifyNoInteractions(participantRepository);
@@ -233,26 +237,26 @@ class TaskServiceImplTest {
         @DisplayName("Should create new recurrence pattern when ID not found")
         void shouldCreateNewRecurrencePatternWhenIdNotFound() {
             // Given
-            try (MockedStatic<com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator> validator =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.class);
-                 MockedStatic<com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper> mapper =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.class)) {
+            try (MockedStatic<TaskEventValidator> validator =
+                mockStatic(TaskEventValidator.class);
+                MockedStatic<TaskEventMapper> mapper =
+                    mockStatic(TaskEventMapper.class)) {
 
-                validator.when(() -> com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.isValidTaskEvent(taskEventDto))
-                        .thenReturn(true);
+                validator.when(() -> TaskEventValidator.isValidTaskEvent(taskEventDto))
+                    .thenReturn(true);
 
                 when(recurrencePatternRepository.findById(recurrencePatternId))
-                        .thenReturn(Optional.empty());
-                mapper.when(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.toRecurrencePatternEntity(taskEventDto.getRecurrencePattern()))
-                        .thenReturn(recurrencePattern);
+                    .thenReturn(Optional.empty());
+                mapper.when(() -> TaskEventMapper.toRecurrencePatternEntity(taskEventDto.getRecurrencePattern()))
+                    .thenReturn(recurrencePattern);
                 when(recurrencePatternRepository.saveAndFlush(recurrencePattern))
-                        .thenReturn(recurrencePattern);
+                    .thenReturn(recurrencePattern);
                 when(taskRepository.findById(taskId))
-                        .thenReturn(Optional.empty());
-                mapper.when(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.toTaskEntity(taskEventDto))
-                        .thenReturn(task);
+                    .thenReturn(Optional.empty());
+                mapper.when(() -> TaskEventMapper.toTaskEntity(taskEventDto))
+                    .thenReturn(task);
                 when(taskRepository.save(any(Task.class)))
-                        .thenReturn(task);
+                    .thenReturn(task);
 
                 // When
                 taskService.handleTaskEvent(taskEventDto);
@@ -270,24 +274,24 @@ class TaskServiceImplTest {
             // Given
             taskEventDto.getRecurrencePattern().setId(null);
 
-            try (MockedStatic<com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator> validator =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.class);
-                 MockedStatic<com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper> mapper =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.class)) {
+            try (MockedStatic<TaskEventValidator> validator =
+                mockStatic(TaskEventValidator.class);
+                MockedStatic<TaskEventMapper> mapper =
+                    mockStatic(TaskEventMapper.class)) {
 
-                validator.when(() -> com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.isValidTaskEvent(taskEventDto))
-                        .thenReturn(true);
+                validator.when(() -> TaskEventValidator.isValidTaskEvent(taskEventDto))
+                    .thenReturn(true);
 
-                mapper.when(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.toRecurrencePatternEntity(taskEventDto.getRecurrencePattern()))
-                        .thenReturn(recurrencePattern);
+                mapper.when(() -> TaskEventMapper.toRecurrencePatternEntity(taskEventDto.getRecurrencePattern()))
+                    .thenReturn(recurrencePattern);
                 when(recurrencePatternRepository.saveAndFlush(recurrencePattern))
-                        .thenReturn(recurrencePattern);
+                    .thenReturn(recurrencePattern);
                 when(taskRepository.findById(taskId))
-                        .thenReturn(Optional.empty());
-                mapper.when(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.toTaskEntity(taskEventDto))
-                        .thenReturn(task);
+                    .thenReturn(Optional.empty());
+                mapper.when(() -> TaskEventMapper.toTaskEntity(taskEventDto))
+                    .thenReturn(task);
                 when(taskRepository.save(any(Task.class)))
-                        .thenReturn(task);
+                    .thenReturn(task);
 
                 // When
                 taskService.handleTaskEvent(taskEventDto);
@@ -305,20 +309,20 @@ class TaskServiceImplTest {
             // Given
             taskEventDto.setRecurrencePattern(null);
 
-            try (MockedStatic<com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator> validator =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.class);
-                 MockedStatic<com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper> mapper =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.class)) {
+            try (MockedStatic<TaskEventValidator> validator =
+                mockStatic(TaskEventValidator.class);
+                MockedStatic<TaskEventMapper> mapper =
+                    mockStatic(TaskEventMapper.class)) {
 
-                validator.when(() -> com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.isValidTaskEvent(taskEventDto))
-                        .thenReturn(true);
+                validator.when(() -> TaskEventValidator.isValidTaskEvent(taskEventDto))
+                    .thenReturn(true);
 
                 when(taskRepository.findById(taskId))
-                        .thenReturn(Optional.empty());
-                mapper.when(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.toTaskEntity(taskEventDto))
-                        .thenReturn(task);
+                    .thenReturn(Optional.empty());
+                mapper.when(() -> TaskEventMapper.toTaskEntity(taskEventDto))
+                    .thenReturn(task);
                 when(taskRepository.save(any(Task.class)))
-                        .thenReturn(task);
+                    .thenReturn(task);
 
                 // When
                 taskService.handleTaskEvent(taskEventDto);
@@ -333,31 +337,31 @@ class TaskServiceImplTest {
         @DisplayName("Should create new participant when ID not found")
         void shouldCreateNewParticipantWhenIdNotFound() {
             // Given
-            try (MockedStatic<com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator> validator =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.class);
-                 MockedStatic<com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper> mapper =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.class)) {
+            try (MockedStatic<TaskEventValidator> validator =
+                mockStatic(TaskEventValidator.class);
+                MockedStatic<TaskEventMapper> mapper =
+                    mockStatic(TaskEventMapper.class)) {
 
-                validator.when(() -> com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.isValidTaskEvent(taskEventDto))
-                        .thenReturn(true);
+                validator.when(() -> TaskEventValidator.isValidTaskEvent(taskEventDto))
+                    .thenReturn(true);
 
                 when(participantRepository.findById(participantId))
-                        .thenReturn(Optional.empty());
-                mapper.when(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.toParticipantEntity(taskEventDto.getParticipants().get(0)))
-                        .thenReturn(participant);
+                    .thenReturn(Optional.empty());
+                mapper.when(() -> TaskEventMapper.toParticipantEntity(taskEventDto.getParticipants().get(0)))
+                    .thenReturn(participant);
                 when(taskRepository.findById(taskId))
-                        .thenReturn(Optional.empty());
-                mapper.when(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.toTaskEntity(taskEventDto))
-                        .thenReturn(task);
+                    .thenReturn(Optional.empty());
+                mapper.when(() -> TaskEventMapper.toTaskEntity(taskEventDto))
+                    .thenReturn(task);
                 when(taskRepository.save(any(Task.class)))
-                        .thenReturn(task);
+                    .thenReturn(task);
 
                 // When
                 taskService.handleTaskEvent(taskEventDto);
 
                 // Then
                 verify(participantRepository).findById(participantId);
-                mapper.verify(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.toParticipantEntity(taskEventDto.getParticipants().get(0)));
+                mapper.verify(() -> TaskEventMapper.toParticipantEntity(taskEventDto.getParticipants().get(0)));
                 verify(taskRepository).save(any(Task.class));
             }
         }
@@ -368,20 +372,20 @@ class TaskServiceImplTest {
             // Given
             taskEventDto.setParticipants(null);
 
-            try (MockedStatic<com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator> validator =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.class);
-                 MockedStatic<com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper> mapper =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.class)) {
+            try (MockedStatic<TaskEventValidator> validator =
+                mockStatic(TaskEventValidator.class);
+                MockedStatic<TaskEventMapper> mapper =
+                    mockStatic(TaskEventMapper.class)) {
 
-                validator.when(() -> com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator.isValidTaskEvent(taskEventDto))
-                        .thenReturn(true);
+                validator.when(() -> TaskEventValidator.isValidTaskEvent(taskEventDto))
+                    .thenReturn(true);
 
                 when(taskRepository.findById(taskId))
-                        .thenReturn(Optional.empty());
-                mapper.when(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper.toTaskEntity(taskEventDto))
-                        .thenReturn(task);
+                    .thenReturn(Optional.empty());
+                mapper.when(() -> TaskEventMapper.toTaskEntity(taskEventDto))
+                    .thenReturn(task);
                 when(taskRepository.save(any(Task.class)))
-                        .thenReturn(task);
+                    .thenReturn(task);
 
                 // When
                 taskService.handleTaskEvent(taskEventDto);
@@ -409,20 +413,20 @@ class TaskServiceImplTest {
             List<Task> tasks = List.of(task);
             Page<Task> taskPage = new PageImpl<>(tasks, pageable, 1);
 
-            try (MockedStatic<com.checkproof.explore.ai_tool_java_copilot.util.TaskDtoMapper> mapper =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.util.TaskDtoMapper.class)) {
+            try (MockedStatic<TaskDtoMapper> mapper =
+                mockStatic(TaskDtoMapper.class)) {
 
-                when(taskRepository.findTasksWithFilters(pageable, status, startDate, endDate))
-                        .thenReturn(taskPage);
+                when(taskRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+                    .thenReturn(taskPage);
 
                 TaskDto taskDto = TaskDto.builder()
-                        .id(taskId)
-                        .title("Test Task")
-                        .description("Test Description")
-                        .build();
+                    .id(taskId)
+                    .title("Test Task")
+                    .description("Test Description")
+                    .build();
 
-                mapper.when(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskDtoMapper.toTaskDto(task))
-                        .thenReturn(taskDto);
+                mapper.when(() -> TaskDtoMapper.toTaskDto(task))
+                    .thenReturn(taskDto);
 
                 // When
                 Page<TaskDto> result = taskService.getAllTasks(pageable, status, startDate, endDate);
@@ -431,7 +435,7 @@ class TaskServiceImplTest {
                 assertThat(result).isNotNull();
                 assertThat(result.getContent()).hasSize(1);
                 assertThat(result.getContent().get(0).getId()).isEqualTo(taskId);
-                verify(taskRepository).findTasksWithFilters(pageable, status, startDate, endDate);
+                verify(taskRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
             }
         }
 
@@ -444,20 +448,20 @@ class TaskServiceImplTest {
             List<Task> tasks = List.of(task);
             Page<Task> taskPage = new PageImpl<>(tasks, pageable, 1);
 
-            try (MockedStatic<com.checkproof.explore.ai_tool_java_copilot.util.TaskDtoMapper> mapper =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.util.TaskDtoMapper.class)) {
+            try (MockedStatic<TaskDtoMapper> mapper =
+                mockStatic(TaskDtoMapper.class)) {
 
-                when(taskRepository.findTasksWithFilters(pageable, null, null, null))
-                        .thenReturn(taskPage);
+                when(taskRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+                    .thenReturn(taskPage);
 
                 TaskDto taskDto = TaskDto.builder()
-                        .id(taskId)
-                        .title("Test Task")
-                        .description("Test Description")
-                        .build();
+                    .id(taskId)
+                    .title("Test Task")
+                    .description("Test Description")
+                    .build();
 
-                mapper.when(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskDtoMapper.toTaskDto(task))
-                        .thenReturn(taskDto);
+                mapper.when(() -> TaskDtoMapper.toTaskDto(task))
+                    .thenReturn(taskDto);
 
                 // When
                 Page<TaskDto> result = taskService.getAllTasks(pageable, null, null, null);
@@ -465,7 +469,7 @@ class TaskServiceImplTest {
                 // Then
                 assertThat(result).isNotNull();
                 assertThat(result.getContent()).hasSize(1);
-                verify(taskRepository).findTasksWithFilters(pageable, null, null, null);
+                verify(taskRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
             }
         }
 
@@ -476,8 +480,8 @@ class TaskServiceImplTest {
             Pageable pageable = PageRequest.of(0, 10);
             Page<Task> emptyPage = new PageImpl<>(Collections.emptyList(), pageable, 0);
 
-            when(taskRepository.findTasksWithFilters(pageable, null, null, null))
-                    .thenReturn(emptyPage);
+            when(taskRepository.findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable)))
+                .thenReturn(emptyPage);
 
             // When
             Page<TaskDto> result = taskService.getAllTasks(pageable, null, null, null);
@@ -486,7 +490,7 @@ class TaskServiceImplTest {
             assertThat(result).isNotNull();
             assertThat(result.getContent()).isEmpty();
             assertThat(result.getTotalElements()).isZero();
-            verify(taskRepository).findTasksWithFilters(pageable, null, null, null);
+            verify(taskRepository).findAll(any(org.springframework.data.jpa.domain.Specification.class), eq(pageable));
         }
     }
 
@@ -498,20 +502,20 @@ class TaskServiceImplTest {
         @DisplayName("Should get task by ID successfully")
         void shouldGetTaskByIdSuccessfully() {
             // Given
-            try (MockedStatic<com.checkproof.explore.ai_tool_java_copilot.util.TaskDtoMapper> mapper =
-                 mockStatic(com.checkproof.explore.ai_tool_java_copilot.util.TaskDtoMapper.class)) {
+            try (MockedStatic<TaskDtoMapper> mapper =
+                mockStatic(TaskDtoMapper.class)) {
 
                 when(taskRepository.findById(taskId))
-                        .thenReturn(Optional.of(task));
+                    .thenReturn(Optional.of(task));
 
                 TaskDto taskDto = TaskDto.builder()
-                        .id(taskId)
-                        .title("Test Task")
-                        .description("Test Description")
-                        .build();
+                    .id(taskId)
+                    .title("Test Task")
+                    .description("Test Description")
+                    .build();
 
-                mapper.when(() -> com.checkproof.explore.ai_tool_java_copilot.util.TaskDtoMapper.toTaskDto(task))
-                        .thenReturn(taskDto);
+                mapper.when(() -> TaskDtoMapper.toTaskDto(task))
+                    .thenReturn(taskDto);
 
                 // When
                 TaskDto result = taskService.getTaskById(taskId);
@@ -529,12 +533,12 @@ class TaskServiceImplTest {
         void shouldThrowExceptionWhenTaskNotFound() {
             // Given
             when(taskRepository.findById(taskId))
-                    .thenReturn(Optional.empty());
+                .thenReturn(Optional.empty());
 
             // When & Then
             assertThatThrownBy(() -> taskService.getTaskById(taskId))
-                    .isInstanceOf(RuntimeException.class)
-                    .hasMessageContaining("Task not found with id: " + taskId);
+                .isInstanceOf(RuntimeException.class)
+                .hasMessageContaining("Task not found with id: " + taskId);
 
             verify(taskRepository).findById(taskId);
         }

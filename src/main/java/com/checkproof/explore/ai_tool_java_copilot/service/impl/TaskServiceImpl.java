@@ -10,6 +10,7 @@ import com.checkproof.explore.ai_tool_java_copilot.enumeration.TaskStatus;
 import com.checkproof.explore.ai_tool_java_copilot.repository.ParticipantRepository;
 import com.checkproof.explore.ai_tool_java_copilot.repository.RecurrencePatternRepository;
 import com.checkproof.explore.ai_tool_java_copilot.repository.TaskRepository;
+import com.checkproof.explore.ai_tool_java_copilot.repository.TaskSpecification;
 import com.checkproof.explore.ai_tool_java_copilot.service.TaskService;
 import com.checkproof.explore.ai_tool_java_copilot.util.TaskDtoMapper;
 import com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper;
@@ -23,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -120,8 +122,7 @@ public class TaskServiceImpl implements TaskService {
     log.info("Fetching tasks with filters - status: {}, startDate: {}, endDate: {}",
              status, startDate, endDate);
 
-    Page<Task> taskPage = taskRepository.findTasksWithFilters(pageable, status, startDate, endDate);
-
+    Page<Task> taskPage = findTasksWithFilters(pageable, status, startDate, endDate);
     return taskPage.map(TaskDtoMapper::toTaskDto);
   }
 
@@ -134,6 +135,17 @@ public class TaskServiceImpl implements TaskService {
         .orElseThrow(() -> new RuntimeException("Task not found with id: " + id));
 
     return TaskDtoMapper.toTaskDto(task);
+  }
+
+  public Page<Task> findTasksWithFilters(Pageable pageable, TaskStatus status,
+      LocalDateTime startDate, LocalDateTime endDate) {
+    Specification<Task> spec = TaskSpecification.withFilters(status, startDate, endDate);
+    return taskRepository.findAll(spec, pageable);
+  }
+
+  public Page<Task> findTasks(Pageable pageable, TaskStatus status,
+      LocalDateTime startDate, LocalDateTime endDate) {
+    return taskRepository.findTasks(status, startDate, endDate, pageable);
   }
 
 }

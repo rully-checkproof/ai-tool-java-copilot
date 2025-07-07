@@ -3,7 +3,6 @@ package com.checkproof.explore.ai_tool_java_copilot.service.impl;
 import com.checkproof.explore.ai_tool_java_copilot.domain.Participant;
 import com.checkproof.explore.ai_tool_java_copilot.domain.RecurrencePattern;
 import com.checkproof.explore.ai_tool_java_copilot.domain.Task;
-import com.checkproof.explore.ai_tool_java_copilot.dto.ParticipantDto;
 import com.checkproof.explore.ai_tool_java_copilot.dto.RecurrencePatternDto;
 import com.checkproof.explore.ai_tool_java_copilot.dto.TaskDto;
 import com.checkproof.explore.ai_tool_java_copilot.dto.TaskEventMessageDto;
@@ -11,8 +10,11 @@ import com.checkproof.explore.ai_tool_java_copilot.enumeration.TaskStatus;
 import com.checkproof.explore.ai_tool_java_copilot.repository.ParticipantRepository;
 import com.checkproof.explore.ai_tool_java_copilot.repository.RecurrencePatternRepository;
 import com.checkproof.explore.ai_tool_java_copilot.repository.TaskRepository;
+import com.checkproof.explore.ai_tool_java_copilot.repository.TaskSpecification;
 import com.checkproof.explore.ai_tool_java_copilot.service.TaskService;
+import com.checkproof.explore.ai_tool_java_copilot.util.TaskDtoMapper;
 import com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper;
+import com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,6 +24,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -38,9 +41,11 @@ public class TaskServiceImpl implements TaskService {
   @Transactional
   public void handleTaskEvent(TaskEventMessageDto dto) {
     log.info("Received task event: {}", dto);
-    if (dto == null || dto.getId() == null) {
-      log.warn("Received null or invalid task event DTO: {}", dto);
-      return;
+    boolean validTaskEvent = TaskEventValidator.isValidTaskEvent(dto);
+    if (!validTaskEvent){
+      log.debug("Invalid task event received: {}", dto);
+      TaskEventValidator.logValidationWarning(dto);
+      return; // Early exit if the event is invalid
     }
     RecurrencePattern recurrencePattern = null;
     if (dto.getRecurrencePattern() != null) {
@@ -114,12 +119,11 @@ public class TaskServiceImpl implements TaskService {
   @Override
   @Transactional(readOnly = true)
   public Page<TaskDto> getAllTasks(Pageable pageable, TaskStatus status, LocalDateTime startDate, LocalDateTime endDate) {
-    log.info("Fetching tasks with filters - status: {}, startDate: {}, endDate: {}, taskId: {}",
+    log.info("Fetching tasks with filters - status: {}, startDate: {}, endDate: {}",
              status, startDate, endDate);
 
-    Page<Task> taskPage = taskRepository.findTasksWithFilters(pageable, status, startDate, endDate);
-
-    return taskPage.map(this::convertToTaskDto);
+    Page<Task> taskPage = findTasksWithFilters(pageable, status, startDate, endDate);
+    return taskPage.map(TaskDtoMapper::toTaskDto);
   }
 
   @Override
@@ -130,46 +134,13 @@ public class TaskServiceImpl implements TaskService {
     Task task = taskRepository.findById(id)
         .orElseThrow(() -> new RuntimeException("Task not found with id: " + id));
 
-    return convertToTaskDto(task);
+    return TaskDtoMapper.toTaskDto(task);
   }
 
-  private TaskDto convertToTaskDto(Task task) {
-    return TaskDto.builder()
-        .id(task.getId())
-        .title(task.getTitle())
-        .description(task.getDescription())
-        .startDate(task.getStartDate())
-        .endDate(task.getEndDate())
-        .priority(task.getPriority())
-        .status(task.getStatus())
-        .recurrenceType(task.getRecurrenceType())
-        .recurrencePattern(task.getRecurrencePattern() != null ?
-            convertToRecurrencePatternDto(task.getRecurrencePattern()) : null)
-        .participants(task.getParticipants() != null ?
-            task.getParticipants().stream()
-                .map(this::convertToParticipantDto)
-                .toList() : List.of())
-        .build();
+  public Page<Task> findTasksWithFilters(Pageable pageable, TaskStatus status,
+      LocalDateTime startDate, LocalDateTime endDate) {
+    Specification<Task> spec = TaskSpecification.withFilters(status, startDate, endDate);
+    return taskRepository.findAll(spec, pageable);
   }
 
-  private RecurrencePatternDto convertToRecurrencePatternDto(RecurrencePattern pattern) {
-    return RecurrencePatternDto.builder()
-        .id(pattern.getId())
-        .type(pattern.getType())
-        .interval(pattern.getRecurrenceInterval())
-        .daysOfWeek(pattern.getDaysOfWeek())
-        .dayOfMonth(pattern.getDayOfMonth())
-        .endDate(pattern.getEndDate())
-        .build();
-  }
-
-  private ParticipantDto convertToParticipantDto(Participant participant) {
-    return ParticipantDto.builder()
-        .id(participant.getId())
-        .name(participant.getName())
-        .title(participant.getTitle())
-        .department(participant.getDepartment())
-        .role(participant.getRole())
-        .build();
-  }
 }

@@ -43,7 +43,7 @@ public class TaskServiceImpl implements TaskService {
     log.info("Received task event: {}", dto);
     boolean validTaskEvent = TaskEventValidator.isValidTaskEvent(dto);
     if (!validTaskEvent){
-      log.warn("Invalid task event received: {}", dto);
+      log.debug("Invalid task event received: {}", dto);
       TaskEventValidator.logValidationWarning(dto);
       return; // Early exit if the event is invalid
     }
@@ -141,11 +141,6 @@ public class TaskServiceImpl implements TaskService {
       LocalDateTime startDate, LocalDateTime endDate) {
     Specification<Task> spec = TaskSpecification.withFilters(status, startDate, endDate);
     return taskRepository.findAll(spec, pageable);
-  }
-
-  public Page<Task> findTasks(Pageable pageable, TaskStatus status,
-      LocalDateTime startDate, LocalDateTime endDate) {
-    return taskRepository.findTasks(status, startDate, endDate, pageable);
   }
 
 }

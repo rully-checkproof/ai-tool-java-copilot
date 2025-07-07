@@ -3,19 +3,30 @@ package com.checkproof.explore.ai_tool_java_copilot.service.impl;
 import com.checkproof.explore.ai_tool_java_copilot.domain.Participant;
 import com.checkproof.explore.ai_tool_java_copilot.domain.RecurrencePattern;
 import com.checkproof.explore.ai_tool_java_copilot.domain.Task;
+import com.checkproof.explore.ai_tool_java_copilot.dto.RecurrencePatternDto;
+import com.checkproof.explore.ai_tool_java_copilot.dto.TaskDto;
 import com.checkproof.explore.ai_tool_java_copilot.dto.TaskEventMessageDto;
+import com.checkproof.explore.ai_tool_java_copilot.enumeration.TaskStatus;
 import com.checkproof.explore.ai_tool_java_copilot.repository.ParticipantRepository;
 import com.checkproof.explore.ai_tool_java_copilot.repository.RecurrencePatternRepository;
 import com.checkproof.explore.ai_tool_java_copilot.repository.TaskRepository;
+import com.checkproof.explore.ai_tool_java_copilot.repository.TaskSpecification;
 import com.checkproof.explore.ai_tool_java_copilot.service.TaskService;
+import com.checkproof.explore.ai_tool_java_copilot.util.TaskDtoMapper;
 import com.checkproof.explore.ai_tool_java_copilot.util.TaskEventMapper;
-import jakarta.transaction.Transactional;
+import com.checkproof.explore.ai_tool_java_copilot.validator.TaskEventValidator;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
@@ -30,9 +41,11 @@ public class TaskServiceImpl implements TaskService {
   @Transactional
   public void handleTaskEvent(TaskEventMessageDto dto) {
     log.info("Received task event: {}", dto);
-    if (dto == null || dto.getId() == null) {
-      log.warn("Received null or invalid task event DTO: {}", dto);
-      return;
+    boolean validTaskEvent = TaskEventValidator.isValidTaskEvent(dto);
+    if (!validTaskEvent){
+      log.debug("Invalid task event received: {}", dto);
+      TaskEventValidator.logValidationWarning(dto);
+      return; // Early exit if the event is invalid
     }
     RecurrencePattern recurrencePattern = null;
     if (dto.getRecurrencePattern() != null) {
@@ -98,8 +111,36 @@ public class TaskServiceImpl implements TaskService {
     log.info("Task event processed successfully: {}", dto);
   }
 
-  private RecurrencePattern createAndSaveRecurrencePattern(com.checkproof.explore.ai_tool_java_copilot.dto.RecurrencePatternDto recurrencePatternDto) {
+  private RecurrencePattern createAndSaveRecurrencePattern(RecurrencePatternDto recurrencePatternDto) {
     RecurrencePattern recurrencePattern = TaskEventMapper.toRecurrencePatternEntity(recurrencePatternDto);
     return recurrencePatternRepository.saveAndFlush(recurrencePattern);
   }
+
+  @Override
+  @Transactional(readOnly = true)
+  public Page<TaskDto> getAllTasks(Pageable pageable, TaskStatus status, LocalDateTime startDate, LocalDateTime endDate) {
+    log.info("Fetching tasks with filters - status: {}, startDate: {}, endDate: {}",
+             status, startDate, endDate);
+
+    Page<Task> taskPage = findTasksWithFilters(pageable, status, startDate, endDate);
+    return taskPage.map(TaskDtoMapper::toTaskDto);
+  }
+
+  @Override
+  @Transactional(readOnly = true)
+  public TaskDto getTaskById(UUID id) {
+    log.info("Fetching task by ID: {}", id);
+
+    Task task = taskRepository.findById(id)
+        .orElseThrow(() -> new RuntimeException("Task not found with id: " + id));
+
+    return TaskDtoMapper.toTaskDto(task);
+  }
+
+  public Page<Task> findTasksWithFilters(Pageable pageable, TaskStatus status,
+      LocalDateTime startDate, LocalDateTime endDate) {
+    Specification<Task> spec = TaskSpecification.withFilters(status, startDate, endDate);
+    return taskRepository.findAll(spec, pageable);
+  }
+
 }

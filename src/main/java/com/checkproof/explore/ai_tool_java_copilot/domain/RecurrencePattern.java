@@ -21,6 +21,7 @@ import lombok.Setter;
 public class RecurrencePattern {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
     @Enumerated(EnumType.STRING)
@@ -29,10 +30,8 @@ public class RecurrencePattern {
     @Column(name = "recurrence_interval")
     private Integer recurrenceInterval; // e.g., every 2 days
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "recurrence_days_of_week", joinColumns = @JoinColumn(name = "recurrence_pattern_id"))
-    @Column(name = "day_of_week")
-    private List<String> daysOfWeek; // e.g., MONDAY, WEDNESDAY
+    @Column(name = "days_of_week", columnDefinition = "text[]")
+    private List<String> daysOfWeek; // e.g., MONDAY, WEDNESDAY, FRIDAY
 
     private Integer dayOfMonth; // e.g., 15 for monthly
 
